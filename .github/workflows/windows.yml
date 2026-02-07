@@ -1,0 +1,40 @@
+name: Windows RDP via Tailscale
+on: [workflow_dispatch]
+
+jobs:
+  windows-remote:
+    runs-on: windows-latest # 👈 关键：这里改成了 Windows
+    steps:
+      # 1. 连接 Tailscale (和之前一样)
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.zeigonfo }}
+          version: 1.94.1  # 保持这个稳定版本
+          hostname: github-windows-box # 给它起个不一样的名字
+
+      # 2. 配置 Windows 远程桌面环境 (PowerShell)
+      - name: Setup RDP & Password
+        run: |
+          # (A) 设置用户 'runneradmin' 的密码
+          # 注意：Windows 密码策略要求稍微复杂一点 (有大写、小写、数字)
+          net user runneradmin "Aa@111111" 
+
+          # (B) 修改注册表，允许远程桌面连接 (fDenyTSConnections = 0)
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
+
+          # (C) 开启防火墙允许 RDP 端口 (3389)
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+          # (D) 显示 IP 地址
+          Write-Host "=========================================="
+          Write-Host "🎉 Windows 环境准备就绪！"
+          Write-Host "你的 Tailscale IP 地址是："
+          tailscale ip -4
+          Write-Host "用户名: runneradmin"
+          Write-Host "密码:   PassWord123456!"
+          Write-Host "=========================================="
+
+      # 3. 保持运行 (6 小时)
+      - name: Keep Alive
+        run: Start-Sleep -Seconds 21600
