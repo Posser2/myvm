@@ -1,40 +1,53 @@
-name: Windows RDP via Tailscale
+name: Windows RDP via Tailscale (Fixed)
 on: [workflow_dispatch]
 
 jobs:
   windows-remote:
-    runs-on: windows-latest # 👈 关键：这里改成了 Windows
+    runs-on: windows-latest
     steps:
-      # 1. 连接 Tailscale (和之前一样)
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.zeigonfo }}
-          version: 1.94.1  # 保持这个稳定版本
-          hostname: github-windows-box # 给它起个不一样的名字
-
-      # 2. 配置 Windows 远程桌面环境 (PowerShell)
-      - name: Setup RDP & Password
+      # 1. 手动下载并安装 Tailscale (代替官方插件)
+      - name: Install Tailscale (Manual)
+        shell: powershell
         run: |
-          # (A) 设置用户 'runneradmin' 的密码
-          # 注意：Windows 密码策略要求稍微复杂一点 (有大写、小写、数字)
+          Write-Host "正在下载 Tailscale..."
+          Invoke-WebRequest -Uri https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile tailscale-setup.exe
+          
+          Write-Host "正在安装 Tailscale..."
+          # /quiet 表示静默安装，不弹窗
+          Start-Process -FilePath "tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
+          
+          Write-Host "安装完成！"
+
+      # 2. 登录 Tailscale
+      - name: Connect to Tailscale
+        shell: powershell
+        run: |
+          # Windows 下 Tailscale 的默认安装路径是 C:\Program Files\Tailscale\
+          # --unattended 表示无人值守模式
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey "${{ secrets.zeigonfo }}" --hostname "github-windows-box" --unattended
+
+      # 3. 配置 Windows 远程桌面环境
+      - name: Setup RDP & Password
+        shell: powershell
+        run: |
+          # 设置密码 (注意：Windows 密码必须包含大小写和数字)
           net user runneradmin "Aa@111111" 
 
-          # (B) 修改注册表，允许远程桌面连接 (fDenyTSConnections = 0)
+          # 修改注册表开启 RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
 
-          # (C) 开启防火墙允许 RDP 端口 (3389)
+          # 开启防火墙端口 3389
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-          # (D) 显示 IP 地址
+          # 显示 IP 地址
           Write-Host "=========================================="
           Write-Host "🎉 Windows 环境准备就绪！"
           Write-Host "你的 Tailscale IP 地址是："
-          tailscale ip -4
+          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
           Write-Host "用户名: runneradmin"
-          Write-Host "密码:   PassWord123456!"
+          Write-Host "密码:   Aa@111111"
           Write-Host "=========================================="
 
-      # 3. 保持运行 (6 小时)
+      # 4. 保持运行 (6 小时)
       - name: Keep Alive
         run: Start-Sleep -Seconds 21600
