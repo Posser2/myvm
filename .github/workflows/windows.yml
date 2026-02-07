@@ -31,7 +31,7 @@ jobs:
         shell: powershell
         run: |
           # 设置密码 (注意：Windows 密码必须包含大小写和数字)
-          net user admin "Aa@111111" 
+          net user runneradmin "Aa@111111" 
 
           # 修改注册表开启 RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
@@ -44,7 +44,7 @@ jobs:
           Write-Host "🎉 Windows 环境准备就绪！"
           Write-Host "你的 Tailscale IP 地址是："
           & "C:\Program Files\Tailscale\tailscale.exe" ip -4
-          Write-Host "用户名: admin"
+          Write-Host "用户名: runneradmin"
           Write-Host "密码:   Aa@111111"
           Write-Host "=========================================="
 
