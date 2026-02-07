@@ -1,0 +1,36 @@
+name: Tailscale Ultimate Connection
+on: [workflow_dispatch] # 手动按钮触发
+
+jobs:
+  high-speed-vps:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 连接到 Tailscale 网络
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.zeigonfo }}
+          version: latest
+          # 给它起个名字，方便你在列表里认出来
+          hostname: github-action-runner
+
+      # 2. 开启 SSH 并设置密码
+      - name: Enable SSH & Set Password
+        run: |
+          # 设置用户 'runner' 的密码为 '123456'
+          # 注意：这是临时环境，密码简单点没事，反正只有你能连
+          echo "runner:123456" | sudo chpasswd
+          
+          # 启动 SSH 服务
+          sudo systemctl start ssh
+          
+          # 显示它的 Tailscale IP 地址，方便你复制
+          echo "=========================================="
+          echo "🎉 连接成功！"
+          echo "你的 Runner IP 地址是："
+          tailscale ip -4
+          echo "=========================================="
+
+      # 3. 保持运行 (最多 6 小时)
+      - name: Keep Alive
+        run: sleep 21600
