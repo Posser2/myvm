@@ -10,7 +10,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.zeigonfo }}
-          version: latest
+          version: 1.70.0
           # 给它起个名字，方便你在列表里认出来
           hostname: github-action-runner
 
