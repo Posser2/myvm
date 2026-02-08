@@ -36,6 +36,27 @@ jobs:
           # 修改注册表开启 RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
 
+          # --- 核心优化开始 ---
+
+          # 1️⃣ 解锁 60FPS (DWM 帧率限制)
+          # 路径: HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations
+          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations" -Name "DWMFRAMEINTERVAL" -Value 15 -PropertyType DWORD -Force
+
+          # 定义组策略注册表路径
+          $TSPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services"
+          # 如果路径不存在则创建
+          if (!(Test-Path $TSPath)) { New-Item -Path $TSPath -Force }
+
+          # 2️⃣ 启用 H.264/AVC 硬件编码
+          # 对应策略: "Use hardware graphics adapters for all Remote Desktop Services sessions"
+          New-ItemProperty -Path $TSPath -Name "VGPUEncoding" -Value 1 -PropertyType DWORD -Force
+
+          # 3️⃣ 优先使用 AVC444 (高质量色彩，文字更清晰)
+          # 对应策略: "Prioritize H.264/AVC 444 Graphics mode for Remote Desktop Connections"
+          New-ItemProperty -Path $TSPath -Name "AVC444ModePreferred" -Value 1 -PropertyType DWORD -Force
+
+          # --- 核心优化结束 ---
+
           # 开启防火墙端口 3389
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
