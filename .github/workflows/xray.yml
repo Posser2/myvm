@@ -44,8 +44,8 @@ jobs:
             - service: http_status:404
           EOF
           
-          sudo su
-          bash <(curl -Ls https://github.com/XTLS/Xray-install/raw/main/install-release.sh)
+          curl -LO https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+          sudo bash install-release.sh
           
           sudo tee /usr/local/etc/xray/config.json > /dev/null << 'EOF'
           {
