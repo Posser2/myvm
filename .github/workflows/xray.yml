@@ -1,0 +1,95 @@
+name: xray
+on: [workflow_dispatch] # 手动按钮触发
+
+jobs:
+  high-speed-vps:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 连接到 Tailscale 网络
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.zeigonfo }}
+          version: 1.94.1
+          # 给它起个名字，方便你在列表里认出来
+          hostname: github-action-runner
+
+      # 2. 开启 SSH 并设置密码
+      - name: Enable SSH & Set Password
+        run: |
+          # 设置用户 'runner' 的密码为 '123456'
+          # 注意：这是临时环境，密码简单点没事，反正只有你能连
+          echo "runner:123456" | sudo chpasswd
+          
+          # 启动 SSH 服务
+          sudo systemctl start ssh
+
+          curl -L -o cloudflared \
+          https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          sudo install -m 0755 cloudflared /usr/local/bin/cloudflared
+          
+          sudo mkdir -p /etc/cloudflared
+          sudo mkdir -p /home/runner/.cloudflared && \
+          sudo tee /home/runner/.cloudflared/ee496e78-c29d-45aa-a9b9-19f55028407e.json > /dev/null << 'EOF'
+          {"AccountTag":"d480fa1824294b62aa07375367eb6979","TunnelSecret":"8lZNeSCRTCXFqek5qL+d0/pjeHRUyk2bXpXy6fY77hg=","TunnelID":"ee496e78-c29d-45aa-a9b9-19f55028407e","Endpoint":""}
+          EOF
+          
+          sudo tee /etc/cloudflared/config.yml > /dev/null << 'EOF'
+          tunnel: ee496e78-c29d-45aa-a9b9-19f55028407e
+          credentials-file: /home/runner/.cloudflared/ee496e78-c29d-45aa-a9b9-19f55028407e.json
+          
+          ingress:
+            - hostname: proxy2.zeigonfo.cc.cd
+              service: http://127.0.0.1:10000
+            - service: http_status:404
+          EOF
+          
+          sudo su
+          bash <(curl -Ls https://github.com/XTLS/Xray-install/raw/main/install-release.sh)
+          
+          sudo tee /usr/local/etc/xray/config.json > /dev/null << 'EOF'
+          {
+            "inbounds": [
+              {
+                "listen": "127.0.0.1",
+                "port": 10000,
+                "protocol": "vless",
+                "settings": {
+                  "clients": [
+                    {
+                      "id": "44444444-4444-4444-8888-888888888888"
+                    }
+                  ],
+                  "decryption": "none"
+                },
+                "streamSettings": {
+                  "network": "ws",
+                  "security": "none",
+                  "wsSettings": {
+                    "path": "/ws"
+                  }
+                }
+              }
+            ],
+            "outbounds": [
+              {
+                "protocol": "freedom"
+              }
+            ]
+          }
+          EOF
+          
+          
+          sudo systemctl enable xray && sudo systemctl restart xray && sudo cloudflared service install && sudo systemctl restart cloudflared
+          
+                    
+          # 显示它的 Tailscale IP 地址，方便你复制
+          echo "=========================================="
+          echo "🎉 连接成功！"
+          echo "你的 Runner IP 地址是："
+          tailscale ip -4
+          echo "=========================================="
+
+      # 3. 保持运行 (最多 6 小时)
+      - name: Keep Alive
+        run: sleep 21600
